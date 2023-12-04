@@ -10,7 +10,7 @@ def listify(vals):
     return [elem for val in vals for elem in val]
 
 def execute_query(query):
-    connex = psycopg2.connect(host="10.19.2.1", database="projet_actu", user="actu_user", password="ValMaxMatAma")
+    connex = psycopg2.connect(host="10.19.2.1", database="projet_actu", user=<user>, password=<password>)
     cursor = connex.cursor()
     cursor.execute(query)
     vals = cursor.fetchall()
@@ -19,7 +19,7 @@ def execute_query(query):
     return vals
 
 def execute_insert(query):
-    connex = psycopg2.connect(host="10.19.2.1", database="projet_actu", user="actu_user", password="ValMaxMatAma")
+    connex = psycopg2.connect(host="10.19.2.1", database="projet_actu", user=<user>, password=<password>)
     cursor = connex.cursor()
     try:
         cursor.execute(query)
