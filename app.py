@@ -24,6 +24,15 @@ def execute_select(query):
     connex.close()
     return vals
 
+def execute_select_not_dict(query):
+    connex = psycopg2.connect(host="10.19.2.1", port="5432", database="projet_actu", user="actu_user", password="ValMaxMatAma")
+    cursor = connex.cursor()
+    cursor.execute(query)
+    vals = cursor.fetchall()
+    cursor.close()
+    connex.close()
+    return vals
+
 def execute_insert(query) : 
     connex = psycopg2.connect(host="10.19.2.1", port="5432", database="projet_actu", user="actu_user", password="ValMaxMatAma")
     cursor = connex.cursor()
@@ -39,7 +48,7 @@ def execute_insert(query) :
         cursor.close()
         connex.close()
 
-def execute_insert(query, mytuple) : 
+def execute_insert_with_tuple(query, mytuple) : 
     connex = psycopg2.connect(host="10.19.2.1", port="5432", database="projet_actu", user="actu_user", password="ValMaxMatAma")
     cursor = connex.cursor()
     try:
@@ -103,7 +112,7 @@ def create_message() :
         date_time = get_timestamp()
         mytuple = (data['actu'], thematique_id, date_time)
         query = "INSERT INTO actu(contenu, thematique_id, date) VALUES %s;"
-        rep = execute_insert(query, mytuple)
+        rep = execute_insert_with_tuple(query, mytuple)
         if rep[0] == 1:
             return jsonify({"message": f"Actu créée avec succès: {data['actu']}, {thematique_id}, {date_time}"}), 201
         else:
@@ -117,6 +126,15 @@ def verif_thematique_in_table(thematique_a_verifier):
     for thematique in thematiques:
         if thematique[1] == thematique_a_verifier :
             return thematique[0]
+        else:
+            return 0
+
+def get_thematique_in_table(thematique_id):
+    # Verification que la thematique est bien présente dans la table thematique
+    thematiques = get_thematiques_tab()
+    for thematique in thematiques:
+        if thematique[0] == thematique_id :
+            return thematique[1]
         else:
             return 0
 
@@ -207,7 +225,7 @@ def create_groupe_actu():
         # Création de la query avec les paramètres présents dans le JSON
         mytuple = (groupe_id, message_id)
         query = "INSERT INTO groupe_actu(groupe_id, actu_id) VALUES %s;"
-        rep = execute_insert(query, mytuple)
+        rep = execute_insert_with_tuple(query, mytuple)
         if rep[0] == 1:
             nb_insert_ok += 1
         else:
@@ -217,6 +235,67 @@ def create_groupe_actu():
     else:
         return jsonify({"message": "Problème d'insertion des données dans la table groupe_actu"}), 400
 
+#recuperation des actu pour un groupe utilisateur donné
+@app.route('/get_actu_groupe', methods=['POST'])
+def get_actu_groupe():
+    # Verification du body du message (il doit être en JSON)
+    if not request.is_json :
+        return jsonify({"error": "Format du post non-JSON"}), 400
+    else:
+        # Récupération du body
+        data = request.json
+    # Exemple de JSON valide :
+    # {"groupe_utilisateur_id" : 2}
+    groupe_utilisateur_id = data['groupe_utilisateur_id']
+    query = f"SELECT actu_id FROM groupe_actu WHERE groupe_actu.groupe_id = {groupe_utilisateur_id};"
+    actu_ids = execute_select_not_dict(query)
+    actu_ids_2 = []
+    for id in actu_ids:
+        actu_ids_2.append(id[0])
 
+    sousQuery = "("
+    cpt = 0
+    for id in actu_ids_2 :
+        cpt += 1
+        if len(actu_ids_2) > cpt : 
+            sousQuery = sousQuery + f"{id},"
+        else :
+            sousQuery = sousQuery + f"{id})"
+
+    query = f"SELECT contenu AS message , thematique.valeur AS theme FROM actu, thematique WHERE actu.id IN {sousQuery} AND actu.thematique_id = thematique.id"
+    data = execute_select(query)
+
+    return data
+
+
+#
+#   Partie thematique
+#
+
+# Récupération de toutes les thematique
+@app.route('/get_thematique', methods=['GET'])
+def get_thematique():
+
+    result = execute_select('SELECT * FROM "thematique";')
+    return jsonify(result)
+
+# Création d'une thématique, avec le nom de la thématique en JSON
+@app.route('/create_thematique', methods=['POST'])
+def create_thematique():
+
+    # Verification du body du message (il doit être en JSON)
+    if not request.is_json :
+        return jsonify({"error": "Format du post non-JSON"}), 400
+    else:
+        # Récupération du body
+        data = request.json
+    # Exemple de JSON valide :
+    # {"valeur" : "thematique"}
+
+    # Création de la query avec les paramètres présents dans le JSON
+    query = f"INSERT INTO thematique(valeur) VALUES ('{data['valeur']}');"
+    execute_insert(query)
+    return jsonify({"message": "Thématique créée avec succès"}), 201
+    
 if __name__ == '__main__':
     app.run()
